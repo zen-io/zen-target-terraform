@@ -18,18 +18,18 @@ package terraform
 // 	Environments    map[string]*environs.Environment `mapstructure:"environments"`     // Deployment Environments
 // }
 
-// func GetTerraformDataTargets(block interface{}, tcc *ahoy_targets.TargetConfigContext) ([]*ahoy_targets.Target, error) {
+// func GetTerraformDataTargets(block interface{}, tcc *zen_targets.TargetConfigContext) ([]*zen_targets.Target, error) {
 // 	var tdc TerraformDataConfig
 // 	mapstructure.Decode(block, &tdc)
 
-// 	var steps []*ahoy_targets.Target
+// 	var steps []*zen_targets.Target
 // 	out := regexp.MustCompile(`([^\.]+)(?:\..*)?`).ReplaceAllString(filepath.Base(*tdc.Url), "$1")
-// 	steps = append(steps, ahoy_targets.NewTarget(
+// 	steps = append(steps, zen_targets.NewTarget(
 // 		tdc.Name,
-// 		ahoy_targets.WithHashes(tdc.Hashes),
-// 		ahoy_targets.WithLabels(tdc.Labels),
-// 		ahoy_targets.WithOuts([]string{out}),
-// 		// 		ahoy_targets.WithBuildFunc(func(target ahoy_targets.Target, runCtx *ahoy_targets.RuntimeContext) error {
+// 		zen_targets.WithHashes(tdc.Hashes),
+// 		zen_targets.WithLabels(tdc.Labels),
+// 		zen_targets.WithOuts([]string{out}),
+// 		// 		zen_targets.WithBuildFunc(func(target zen_targets.Target, runCtx *zen_targets.RuntimeContext) error {
 
 // 			return nil
 // 		}),

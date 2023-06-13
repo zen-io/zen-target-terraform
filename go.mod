@@ -1,12 +1,12 @@
-module github.com/tiagoposse/ahoy-terraform
+module github.com/zen-io/zen-target-terraform
 
 go 1.20
 
 require (
 	github.com/go-git/go-git/v5 v5.7.0
 	github.com/hashicorp/go-getter/v2 v2.2.1
-	github.com/tiagoposse/ahoy-files v0.0.0-00010101000000-000000000000
-	gitlab.com/hidothealth/platform/ahoy v0.0.0-00010101000000-000000000000
+	github.com/zen-io/zen-core v0.0.0-20230629185926-24b38b41eeb8
+	github.com/zen-io/zen-target-files v0.0.0-20230629190837-e22f075981ce
 	golang.org/x/exp v0.0.0-20230522175609-2e198f4a06a1
 )
 
@@ -33,36 +33,27 @@ require (
 	github.com/kevinburke/ssh_config v1.2.0 // indirect
 	github.com/klauspost/compress v1.16.5 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
-	github.com/mattn/go-isatty v0.0.17 // indirect
+	github.com/mattn/go-isatty v0.0.19 // indirect
 	github.com/mattn/go-runewidth v0.0.14 // indirect
 	github.com/mitchellh/colorstring v0.0.0-20190213212951-d06e56a500db // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mitchellh/go-testing-interface v1.0.0 // indirect
-	github.com/otiai10/copy v1.11.0 // indirect
 	github.com/pjbgf/sha1cd v0.3.0 // indirect
-	github.com/rivo/uniseg v0.2.0 // indirect
+	github.com/rivo/uniseg v0.4.4 // indirect
 	github.com/schollz/progressbar/v3 v3.13.1 // indirect
 	github.com/sergi/go-diff v1.1.0 // indirect
 	github.com/skeema/knownhosts v1.1.1 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
-	github.com/tiagoposse/ahoy-archiving v0.0.0-00010101000000-000000000000 // indirect
 	github.com/tiagoposse/go-sync-types v0.0.0-20230606060517-e7839c4bca50 // indirect
-	github.com/tiagoposse/go-tasklist-out v0.0.0-00010101000000-000000000000 // indirect
+	github.com/tiagoposse/go-tasklist-out v0.0.0-20230612172535-e54b6ceb9584 // indirect
 	github.com/ulikunitz/xz v0.5.8 // indirect
 	github.com/xanzy/ssh-agent v0.3.3 // indirect
-	golang.org/x/crypto v0.9.0 // indirect
+	github.com/zen-io/zen-target-archiving v0.0.0-20230629190153-66bed65eb3e0 // indirect
+	golang.org/x/crypto v0.10.0 // indirect
 	golang.org/x/mod v0.10.0 // indirect
 	golang.org/x/net v0.10.0 // indirect
-	golang.org/x/sys v0.8.0 // indirect
-	golang.org/x/term v0.8.0 // indirect
+	golang.org/x/sys v0.9.0 // indirect
+	golang.org/x/term v0.9.0 // indirect
 	golang.org/x/tools v0.8.0 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 )
-
-replace gitlab.com/hidothealth/platform/ahoy => /Users/tiagoposse/hi/ahoy
-
-replace github.com/tiagoposse/ahoy-files => /Users/tiagoposse/personal/ahoy-files
-
-replace github.com/tiagoposse/go-tasklist-out => /Users/tiagoposse/personal/go-tasklist-out
-
-replace github.com/tiagoposse/ahoy-archiving => /Users/tiagoposse/personal/ahoy-archiving

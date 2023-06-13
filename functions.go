@@ -6,10 +6,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	ahoy_targets "gitlab.com/hidothealth/platform/ahoy/src/target"
+	zen_targets "github.com/zen-io/zen-core/target"
 )
 
-var terraformExec = func(target *ahoy_targets.Target, env string, args []string) error {
+var terraformExec = func(target *zen_targets.Target, env string, args []string) error {
 	var executable string
 	if env == "local" {
 		executable = "tflocal"
@@ -26,7 +26,7 @@ var terraformExec = func(target *ahoy_targets.Target, env string, args []string)
 	return cmd.Run()
 }
 
-var tfInit = func(target *ahoy_targets.Target, env string) error {
+var tfInit = func(target *zen_targets.Target, env string) error {
 	if err := terraformExec(target, env, []string{"init"}); err != nil {
 		return fmt.Errorf("executing init: %w", err)
 	}
@@ -34,7 +34,7 @@ var tfInit = func(target *ahoy_targets.Target, env string) error {
 	return nil
 }
 
-var tfPlanApply = func(target *ahoy_targets.Target, env string) error {
+var tfPlanApply = func(target *zen_targets.Target, env string) error {
 	if err := terraformExec(target, env, []string{"plan"}); err != nil {
 		return fmt.Errorf("executing plan: %w", err)
 	}
@@ -42,7 +42,7 @@ var tfPlanApply = func(target *ahoy_targets.Target, env string) error {
 	return nil
 }
 
-var tfPlanDestroy = func(target *ahoy_targets.Target, env string) error {
+var tfPlanDestroy = func(target *zen_targets.Target, env string) error {
 	if err := terraformExec(target, env, []string{"plan", "-destroy"}); err != nil {
 		return fmt.Errorf("executing plan: %w", err)
 	}
@@ -50,7 +50,7 @@ var tfPlanDestroy = func(target *ahoy_targets.Target, env string) error {
 	return nil
 }
 
-var tfApply = func(target *ahoy_targets.Target, env string) error {
+var tfApply = func(target *zen_targets.Target, env string) error {
 	if err := terraformExec(target, env, []string{"apply", "-auto-approve"}); err != nil {
 		return fmt.Errorf("executing apply: %w", err)
 	}
@@ -58,7 +58,7 @@ var tfApply = func(target *ahoy_targets.Target, env string) error {
 	return nil
 }
 
-var tfDestroy = func(target *ahoy_targets.Target, env string) error {
+var tfDestroy = func(target *zen_targets.Target, env string) error {
 	if err := terraformExec(target, env, []string{"apply", "-destroy", "-auto-approve"}); err != nil {
 		return fmt.Errorf("executing destroy: %w", err)
 	}
@@ -66,7 +66,7 @@ var tfDestroy = func(target *ahoy_targets.Target, env string) error {
 	return nil
 }
 
-var preFunc = func(target *ahoy_targets.Target, runCtx *ahoy_targets.RuntimeContext) error {
+var preFunc = func(target *zen_targets.Target, runCtx *zen_targets.RuntimeContext) error {
 	if target.Environments != nil && len(target.Environments) > 0 {
 		target.Cwd = filepath.Join(target.Cwd, runCtx.Env)
 	}

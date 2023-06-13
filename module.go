@@ -18,20 +18,30 @@ import (
 	git "github.com/go-git/go-git/v5"
 	gitHttp "github.com/go-git/go-git/v5/plumbing/transport/http"
 	getr "github.com/hashicorp/go-getter/v2"
-	files "github.com/tiagoposse/ahoy-files"
-	ahoy_targets "gitlab.com/hidothealth/platform/ahoy/src/target"
+	environs "github.com/zen-io/zen-core/environments"
+	zen_targets "github.com/zen-io/zen-core/target"
+	files "github.com/zen-io/zen-target-files"
 )
 
 type TerraformModuleConfig struct {
-	Srcs                    []string          `mapstructure:"srcs"`
-	Url                     *string           `mapstructure:"url"`
-	Hashes                  []string          `mapstructure:"hashes"`
-	Username                *string           `mapstructure:"username"`
-	Password                *string           `mapstructure:"password"`
-	Headers                 map[string]string `mapstructure:"headers,remain"`
-	GitlabProject           string            `mapstructure:"gitlab_project"`
-	ModuleName              string            `mapstructure:"module_name"`
-	ahoy_targets.BaseFields `mapstructure:",squash"`
+	Name          string                           `mapstructure:"name" desc:"Name for the target"`
+	Description   string                           `mapstructure:"desc" desc:"Target description"`
+	Labels        []string                         `mapstructure:"labels" desc:"Labels to apply to the targets"`
+	Deps          []string                         `mapstructure:"deps" desc:"Build dependencies"`
+	PassEnv       []string                         `mapstructure:"pass_env" desc:"List of environment variable names that will be passed from the OS environment, they are part of the target hash"`
+	SecretEnv     []string                         `mapstructure:"secret_env" desc:"List of environment variable names that will be passed from the OS environment, they are not used to calculate the target hash"`
+	Env           map[string]string                `mapstructure:"env" desc:"Key-Value map of static environment variables to be used"`
+	Tools         map[string]string                `mapstructure:"tools" desc:"Key-Value map of tools to include when executing this target. Values can be references"`
+	Visibility    []string                         `mapstructure:"visibility" desc:"List of visibility for this target"`
+	Environments  map[string]*environs.Environment `mapstructure:"environments" desc:"Deployment Environments"`
+	Srcs          []string                         `mapstructure:"srcs"`
+	Url           *string                          `mapstructure:"url"`
+	Hashes        []string                         `mapstructure:"hashes"`
+	Username      *string                          `mapstructure:"username"`
+	Password      *string                          `mapstructure:"password"`
+	Headers       map[string]string                `mapstructure:"headers,remain"`
+	GitlabProject string                           `mapstructure:"gitlab_project"`
+	ModuleName    string                           `mapstructure:"module_name"`
 }
 
 type Release struct {
@@ -39,19 +49,19 @@ type Release struct {
 	Id      string `json:"id"`
 }
 
-func (tmc TerraformModuleConfig) GetTargets(tcc *ahoy_targets.TargetConfigContext) ([]*ahoy_targets.Target, error) {
-	var steps []*ahoy_targets.Target
+func (tmc TerraformModuleConfig) GetTargets(tcc *zen_targets.TargetConfigContext) ([]*zen_targets.Target, error) {
+	var steps []*zen_targets.Target
 	if tmc.Url != nil {
 		out := regexp.MustCompile(`([^\.]+)(?:\..*)?`).ReplaceAllString(filepath.Base(*tmc.Url), "$1")
-		steps = append(steps, ahoy_targets.NewTarget(
+		steps = append(steps, zen_targets.NewTarget(
 			tmc.Name,
-			ahoy_targets.WithHashes(tmc.Hashes),
-			ahoy_targets.WithLabels(tmc.Labels),
-			ahoy_targets.WithOuts([]string{out}),
+			zen_targets.WithHashes(tmc.Hashes),
+			zen_targets.WithLabels(tmc.Labels),
+			zen_targets.WithOuts([]string{out}),
 
-			ahoy_targets.WithTargetScript("build", &ahoy_targets.TargetScript{
+			zen_targets.WithTargetScript("build", &zen_targets.TargetScript{
 				Deps: tmc.Deps,
-				Run: func(target *ahoy_targets.Target, runCtx *ahoy_targets.RuntimeContext) error {
+				Run: func(target *zen_targets.Target, runCtx *zen_targets.RuntimeContext) error {
 					if strings.HasPrefix(*tmc.Url, "git") || strings.HasSuffix(*tmc.Url, ".git") {
 						// Set up authentication
 						opts := &git.CloneOptions{
@@ -80,14 +90,10 @@ func (tmc TerraformModuleConfig) GetTargets(tcc *ahoy_targets.TargetConfigContex
 		))
 	} else {
 		fc := files.FilegroupConfig{
-			BuildFields: ahoy_targets.BuildFields{
-				Name: tmc.Name,
-				BaseFields: ahoy_targets.BaseFields{
-					Labels: tmc.Labels,
-					Deps:   tmc.Deps,
-				},
-				Srcs: tmc.Srcs,
-			},
+			Name:    tmc.Name,
+			Labels:  tmc.Labels,
+			Deps:    tmc.Deps,
+			Srcs:    tmc.Srcs,
 			Flatten: true,
 		}
 		if fgTargets, err := fc.GetTargets(tcc); err != nil {
@@ -97,7 +103,7 @@ func (tmc TerraformModuleConfig) GetTargets(tcc *ahoy_targets.TargetConfigContex
 		}
 	}
 
-	var getLatestVersion = func(ctx *ahoy_targets.Target, runCtx *ahoy_targets.RuntimeContext) (*Release, error) {
+	var getLatestVersion = func(ctx *zen_targets.Target, runCtx *zen_targets.RuntimeContext) (*Release, error) {
 		// GitLab personal access token with "api" scope
 		token := "YOUR_GITLAB_API_TOKEN"
 
@@ -137,11 +143,11 @@ func (tmc TerraformModuleConfig) GetTargets(tcc *ahoy_targets.TargetConfigContex
 		return versions[0], nil
 	}
 
-	steps = append(steps, ahoy_targets.NewTarget(
+	steps = append(steps, zen_targets.NewTarget(
 		fmt.Sprintf("%s_scripts", tmc.Name),
-		ahoy_targets.WithSrcs(map[string][]string{"module": steps[len(steps)-1].Outs}),
-		ahoy_targets.WithTargetScript("deploy", &ahoy_targets.TargetScript{
-			Run: func(target *ahoy_targets.Target, runCtx *ahoy_targets.RuntimeContext) error {
+		zen_targets.WithSrcs(map[string][]string{"module": steps[len(steps)-1].Outs}),
+		zen_targets.WithTargetScript("deploy", &zen_targets.TargetScript{
+			Run: func(target *zen_targets.Target, runCtx *zen_targets.RuntimeContext) error {
 				// GitLab personal access token with "api" scope
 				token := "YOUR_GITLAB_API_TOKEN"
 
@@ -226,8 +232,8 @@ func (tmc TerraformModuleConfig) GetTargets(tcc *ahoy_targets.TargetConfigContex
 			},
 		}),
 
-		ahoy_targets.WithTargetScript("remove", &ahoy_targets.TargetScript{
-			Run: func(target *ahoy_targets.Target, runCtx *ahoy_targets.RuntimeContext) error {
+		zen_targets.WithTargetScript("remove", &zen_targets.TargetScript{
+			Run: func(target *zen_targets.Target, runCtx *zen_targets.RuntimeContext) error {
 				// // GitLab personal access token with "api" scope
 				// token := "YOUR_GITLAB_API_TOKEN"
 
@@ -262,8 +268,8 @@ func (tmc TerraformModuleConfig) GetTargets(tcc *ahoy_targets.TargetConfigContex
 				return nil
 			},
 		}),
-		ahoy_targets.WithTargetScript("current", &ahoy_targets.TargetScript{
-			Run: func(target *ahoy_targets.Target, runCtx *ahoy_targets.RuntimeContext) error {
+		zen_targets.WithTargetScript("current", &zen_targets.TargetScript{
+			Run: func(target *zen_targets.Target, runCtx *zen_targets.RuntimeContext) error {
 				current, err := getLatestVersion(target, runCtx)
 				if err == nil {
 					fmt.Printf("Current version is %s (%s)", current.Version, current.Id)

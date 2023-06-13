@@ -7,31 +7,41 @@ import (
 	"regexp"
 	"strings"
 
-	ahoy_targets "gitlab.com/hidothealth/platform/ahoy/src/target"
+	environs "github.com/zen-io/zen-core/environments"
+	zen_targets "github.com/zen-io/zen-core/target"
+	"github.com/zen-io/zen-core/utils"
 	"golang.org/x/exp/slices"
 )
 
 type TerraformDeploymentConfig struct {
-	VarFiles                  []string `mapstructure:"var_files" desc:"Variable files to include (.tfvars)"`
-	Backend                   *string  `mapstructure:"backend" desc:"Terraform backend file. Can be a ref or path"`
-	Terraform                 *string  `mapstructure:"terraform" desc:"Terraform executable. Can be a ref or path"`
-	Tflocal                   *string  `mapstructure:"tflocal" desc:"Tflocal executable. Can be a ref or path"`
-	Tflint                    *string  `mapstructure:"tflint" desc:"Tflint executable. Can be a ref or path"`
-	Modules                   []string `mapstructure:"modules" desc:"Modules to include as sources. List of references"`
-	ProviderConfigs           []string `mapstructure:"provider_configs" desc:"Providers to include as sources"`
-	AllowFailure              bool     `mapstructure:"allow_failure"`
-	ahoy_targets.DeployFields `mapstructure:",squash"`
+	VarFiles        []string `mapstructure:"var_files" desc:"Variable files to include (.tfvars)"`
+	Backend         *string  `mapstructure:"backend" desc:"Terraform backend file. Can be a ref or path"`
+	Terraform       *string  `mapstructure:"terraform" desc:"Terraform executable. Can be a ref or path"`
+	Tflocal         *string  `mapstructure:"tflocal" desc:"Tflocal executable. Can be a ref or path"`
+	Tflint          *string  `mapstructure:"tflint" desc:"Tflint executable. Can be a ref or path"`
+	Modules         []string `mapstructure:"modules" desc:"Modules to include as sources. List of references"`
+	ProviderConfigs []string `mapstructure:"provider_configs" desc:"Providers to include as sources"`
+	AllowFailure    bool     `mapstructure:"allow_failure"`
 }
 
 type TerraformConfig struct {
-	Srcs                      []string `mapstructure:"srcs" desc:"Terraform source files (.tf)"`
-	Data                      []string `mapstructure:"data" desc:"Other files to add to this execution, that wont be interpolated"`
-	DeployDeps                []string `mapstructure:"deploy_deps" desc:"Deploy dependencies"`
+	Name                      string                           `mapstructure:"name" desc:"Name for the target"`
+	Description               string                           `mapstructure:"desc" desc:"Target description"`
+	Labels                    []string                         `mapstructure:"labels" desc:"Labels to apply to the targets"`
+	Deps                      []string                         `mapstructure:"deps" desc:"Build dependencies"`
+	PassEnv                   []string                         `mapstructure:"pass_env" desc:"List of environment variable names that will be passed from the OS environment, they are part of the target hash"`
+	SecretEnv                 []string                         `mapstructure:"secret_env" desc:"List of environment variable names that will be passed from the OS environment, they are not used to calculate the target hash"`
+	Env                       map[string]string                `mapstructure:"env" desc:"Key-Value map of static environment variables to be used"`
+	Tools                     map[string]string                `mapstructure:"tools" desc:"Key-Value map of tools to include when executing this target. Values can be references"`
+	Visibility                []string                         `mapstructure:"visibility" desc:"List of visibility for this target"`
+	Environments              map[string]*environs.Environment `mapstructure:"environments" desc:"Deployment Environments"`
+	Srcs                      []string                         `mapstructure:"srcs" desc:"Terraform source files (.tf)"`
+	Data                      []string                         `mapstructure:"data" desc:"Other files to add to this execution, that wont be interpolated"`
+	DeployDeps                []string                         `mapstructure:"deploy_deps" desc:"Deploy dependencies"`
 	TerraformDeploymentConfig `mapstructure:",squash"`
-	ahoy_targets.BaseFields   `mapstructure:",squash"`
 }
 
-func (tc TerraformConfig) GetTargets(tcc *ahoy_targets.TargetConfigContext) ([]*ahoy_targets.Target, error) {
+func (tc TerraformConfig) GetTargets(tcc *zen_targets.TargetConfigContext) ([]*zen_targets.Target, error) {
 	buildSrcs := map[string][]string{
 		"_srcs":     tc.Srcs,
 		"_data":     tc.Data,
@@ -59,14 +69,14 @@ func (tc TerraformConfig) GetTargets(tcc *ahoy_targets.TargetConfigContext) ([]*
 	for _, pc := range tc.ProviderConfigs {
 		buildSrcs["providers"] = append(buildSrcs["providers"], pc)
 
-		if ahoy_targets.IsTargetReference(pc) {
+		if zen_targets.IsTargetReference(pc) {
 			tc.Deps = append(tc.Deps, pc)
 		}
 	}
 
 	for _, mod := range tc.Modules {
 		buildSrcs["modules"] = append(buildSrcs["modules"], mod)
-		if ahoy_targets.IsTargetReference(mod) {
+		if zen_targets.IsTargetReference(mod) {
 			tc.Deps = append(tc.Deps, mod)
 		}
 	}
@@ -86,7 +96,7 @@ func (tc TerraformConfig) GetTargets(tcc *ahoy_targets.TargetConfigContext) ([]*
 			}
 
 			if backend != "" {
-				if ahoy_targets.IsTargetReference(backend) {
+				if zen_targets.IsTargetReference(backend) {
 					tc.Deps = append(tc.Deps, backend)
 				}
 				buildSrcs["backend_"+env] = []string{backend}
@@ -100,24 +110,24 @@ func (tc TerraformConfig) GetTargets(tcc *ahoy_targets.TargetConfigContext) ([]*
 			buildSrcs["backend"] = []string{*tc.Backend}
 		} else if val, ok := tcc.Variables["TERRAFORM_BACKEND"]; ok {
 			buildSrcs["backend"] = []string{val}
-			if ahoy_targets.IsTargetReference(val) {
+			if zen_targets.IsTargetReference(val) {
 				tc.Deps = append(tc.Deps, val)
 			}
 		}
 	}
 
-	steps := []*ahoy_targets.Target{
-		ahoy_targets.NewTarget(
+	steps := []*zen_targets.Target{
+		zen_targets.NewTarget(
 			tc.Name,
-			ahoy_targets.WithSrcs(buildSrcs),
-			ahoy_targets.WithOuts(outs),
-			ahoy_targets.WithEnvironments(tc.Environments),
-			ahoy_targets.WithTools(tc.Tools),
-			ahoy_targets.WithEnvVars(tc.Env),
-			ahoy_targets.WithPassEnv(tc.PassEnv),
-			ahoy_targets.WithTargetScript("build", &ahoy_targets.TargetScript{
+			zen_targets.WithSrcs(buildSrcs),
+			zen_targets.WithOuts(outs),
+			zen_targets.WithEnvironments(tc.Environments),
+			zen_targets.WithTools(tc.Tools),
+			zen_targets.WithEnvVars(tc.Env),
+			zen_targets.WithPassEnv(tc.PassEnv),
+			zen_targets.WithTargetScript("build", &zen_targets.TargetScript{
 				Deps: tc.Deps,
-				Run: func(target *ahoy_targets.Target, runCtx *ahoy_targets.RuntimeContext) error {
+				Run: func(target *zen_targets.Target, runCtx *zen_targets.RuntimeContext) error {
 					flattenedSrcs := target.Srcs["_srcs"]
 					flattenedSrcs = append(flattenedSrcs, target.Srcs["providers"]...)
 
@@ -171,28 +181,28 @@ func (tc TerraformConfig) GetTargets(tcc *ahoy_targets.TargetConfigContext) ([]*
 								}
 							} else {
 								from = src
-								to = filepath.Join(dest, filepath.Base(src))
+								to = filepath.Join(dest, filepath.Base(target.StripCwd(src)))
 							}
 
-							if err := ahoy_targets.CopyWithInterpolate(from, to, target, runCtx, envInterpolate); err != nil {
+							if err := utils.CopyWithInterpolate(from, to, target.EnvVars(), envInterpolate); err != nil {
 								return fmt.Errorf("copying flattened src: %w", err)
 							}
 						}
 
 						for _, src := range target.Srcs[backendPath] {
 							from := src
-							to := filepath.Join(dest, fmt.Sprintf("_backend_%s", filepath.Base(src)))
+							to := filepath.Join(dest, fmt.Sprintf("_backend_%s", filepath.Base(target.StripCwd(src))))
 
-							if err := ahoy_targets.CopyWithInterpolate(from, to, target, runCtx, envInterpolate); err != nil {
+							if err := utils.CopyWithInterpolate(from, to, target.EnvVars(), envInterpolate); err != nil {
 								return fmt.Errorf("copying src: %w", err)
 							}
 						}
 
 						for _, src := range target.Srcs["modules"] {
 							from := src
-							to := filepath.Join(dest, src)
+							to := filepath.Join(dest, target.StripCwd(src))
 
-							if err := ahoy_targets.CopyWithInterpolate(from, to, target, runCtx, envInterpolate); err != nil {
+							if err := utils.CopyWithInterpolate(from, to, target.EnvVars(), envInterpolate); err != nil {
 								return fmt.Errorf("copying module %w", err)
 							}
 						}
@@ -201,11 +211,11 @@ func (tc TerraformConfig) GetTargets(tcc *ahoy_targets.TargetConfigContext) ([]*
 					return nil
 				},
 			}),
-			ahoy_targets.WithTargetScript("deploy", &ahoy_targets.TargetScript{
+			zen_targets.WithTargetScript("deploy", &zen_targets.TargetScript{
 				Deps:  tc.DeployDeps,
 				Alias: []string{"apply"},
 				Pre:   preFunc,
-				Run: func(target *ahoy_targets.Target, runCtx *ahoy_targets.RuntimeContext) error {
+				Run: func(target *zen_targets.Target, runCtx *zen_targets.RuntimeContext) error {
 					target.SetStatus(fmt.Sprintf("Initializing %s", target.Qn()))
 					if err := tfInit(target, runCtx.Env); err != nil {
 						return fmt.Errorf("deploying: %s", err)
@@ -226,8 +236,8 @@ func (tc TerraformConfig) GetTargets(tcc *ahoy_targets.TargetConfigContext) ([]*
 					return nil
 				},
 			}),
-			ahoy_targets.WithTargetScript("lint", &ahoy_targets.TargetScript{
-				Run: func(target *ahoy_targets.Target, runCtx *ahoy_targets.RuntimeContext) error {
+			zen_targets.WithTargetScript("lint", &zen_targets.TargetScript{
+				Run: func(target *zen_targets.Target, runCtx *zen_targets.RuntimeContext) error {
 					if _, ok := target.Tools["tflint"]; !ok {
 						return fmt.Errorf("tflint is not configured")
 					}
@@ -242,9 +252,9 @@ func (tc TerraformConfig) GetTargets(tcc *ahoy_targets.TargetConfigContext) ([]*
 					return cmd.Run()
 				},
 			}),
-			ahoy_targets.WithTargetScript("remove", &ahoy_targets.TargetScript{
+			zen_targets.WithTargetScript("remove", &zen_targets.TargetScript{
 				Pre: preFunc,
-				Run: func(target *ahoy_targets.Target, runCtx *ahoy_targets.RuntimeContext) error {
+				Run: func(target *zen_targets.Target, runCtx *zen_targets.RuntimeContext) error {
 					target.SetStatus(fmt.Sprintf("Initializing %s", target.Qn()))
 					if err := tfInit(target, runCtx.Env); err != nil {
 						return fmt.Errorf("destroying: %s", err)
@@ -265,9 +275,9 @@ func (tc TerraformConfig) GetTargets(tcc *ahoy_targets.TargetConfigContext) ([]*
 					return nil
 				},
 			}),
-			ahoy_targets.WithTargetScript("unlock", &ahoy_targets.TargetScript{
+			zen_targets.WithTargetScript("unlock", &zen_targets.TargetScript{
 				Pre: preFunc,
-				Run: func(target *ahoy_targets.Target, runCtx *ahoy_targets.RuntimeContext) error {
+				Run: func(target *zen_targets.Target, runCtx *zen_targets.RuntimeContext) error {
 					target.SetStatus(fmt.Sprintf("Initializing %s", target.Qn()))
 					if err := tfInit(target, runCtx.Env); err != nil {
 						return fmt.Errorf("destroying: %s", err)

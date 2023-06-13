@@ -3,10 +3,10 @@ package terraform
 import (
 	"fmt"
 
-	ahoy_targets "gitlab.com/hidothealth/platform/ahoy/src/target"
+	zen_targets "github.com/zen-io/zen-core/target"
 )
 
-func expandTools(tf *string, tflocal *string, tcc *ahoy_targets.TargetConfigContext) (tools map[string]string, deps []string, err error) {
+func expandTools(tf *string, tflocal *string, tcc *zen_targets.TargetConfigContext) (tools map[string]string, deps []string, err error) {
 	tools = map[string]string{}
 	deps = make([]string, 0)
 
@@ -18,7 +18,7 @@ func expandTools(tf *string, tflocal *string, tcc *ahoy_targets.TargetConfigCont
 			return
 		} else {
 			tools["terraform"] = val
-			if ahoy_targets.IsTargetReference(val) {
+			if zen_targets.IsTargetReference(val) {
 				deps = append(deps, val)
 			}
 		}
@@ -32,7 +32,7 @@ func expandTools(tf *string, tflocal *string, tcc *ahoy_targets.TargetConfigCont
 			return
 		} else {
 			tools["tflocal"] = val
-			if ahoy_targets.IsTargetReference(val) {
+			if zen_targets.IsTargetReference(val) {
 				deps = append(deps, val)
 			}
 		}
@@ -41,7 +41,7 @@ func expandTools(tf *string, tflocal *string, tcc *ahoy_targets.TargetConfigCont
 	return
 }
 
-func expandVarFiles(tc TerraformConfig, tcc *ahoy_targets.TargetConfigContext) (map[string][]string, error) {
+func expandVarFiles(tc TerraformConfig, tcc *zen_targets.TargetConfigContext) (map[string][]string, error) {
 	varsByEnv := make(map[string][]string)
 
 	for env := range tc.Environments {
