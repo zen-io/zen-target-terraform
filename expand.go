@@ -40,25 +40,3 @@ func expandTools(tf *string, tflocal *string, tcc *zen_targets.TargetConfigConte
 
 	return
 }
-
-func expandVarFiles(tc TerraformConfig, tcc *zen_targets.TargetConfigContext) (map[string][]string, error) {
-	varsByEnv := make(map[string][]string)
-
-	for env := range tc.Environments {
-		interpolatedVars := []string{}
-
-		if tc.VarFiles != nil {
-			for _, vf := range tc.VarFiles {
-				interpolated, err := tcc.Interpolate(vf, map[string]string{"ENV": env})
-				if err != nil {
-					return nil, err
-				}
-				interpolatedVars = append(interpolatedVars, interpolated)
-			}
-
-			varsByEnv["vars_"+env] = interpolatedVars
-		}
-	}
-
-	return varsByEnv, nil
-}

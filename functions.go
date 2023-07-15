@@ -2,9 +2,7 @@ package terraform
 
 import (
 	"fmt"
-	"os/exec"
 	"path/filepath"
-	"strings"
 
 	zen_targets "github.com/zen-io/zen-core/target"
 )
@@ -17,13 +15,7 @@ var terraformExec = func(target *zen_targets.Target, env string, args []string) 
 		executable = "terraform"
 	}
 
-	target.Debugln("executing %s", strings.Join(append([]string{target.Tools[executable]}, args...), " "))
-	cmd := exec.Command(target.Tools[executable], args...)
-	cmd.Dir = target.Cwd
-	cmd.Env = append(target.GetEnvironmentVariablesList(), "TF_INPUT=false")
-	cmd.Stdout = target
-	cmd.Stderr = target
-	return cmd.Run()
+	return target.Exec(append([]string{target.Tools[executable]}, args...), "tf exec")
 }
 
 var tfInit = func(target *zen_targets.Target, env string) error {

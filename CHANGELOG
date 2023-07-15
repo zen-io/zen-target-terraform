@@ -1,0 +1,6 @@
+# CHANGELOG
+
+## 0.0.2
+
+* [chore] bump zen-core
+* [feat] support passing environment for deployment steps

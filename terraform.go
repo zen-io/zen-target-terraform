@@ -32,6 +32,7 @@ type TerraformConfig struct {
 	PassEnv                   []string                         `mapstructure:"pass_env" desc:"List of environment variable names that will be passed from the OS environment, they are part of the target hash"`
 	SecretEnv                 []string                         `mapstructure:"secret_env" desc:"List of environment variable names that will be passed from the OS environment, they are not used to calculate the target hash"`
 	Env                       map[string]string                `mapstructure:"env" desc:"Key-Value map of static environment variables to be used"`
+	DeployEnv                 map[string]string                `mapstructure:"deploy_env" desc:"Key-Value map of environment variables to be used at deploy time."`
 	Tools                     map[string]string                `mapstructure:"tools" desc:"Key-Value map of tools to include when executing this target. Values can be references"`
 	Visibility                []string                         `mapstructure:"visibility" desc:"List of visibility for this target"`
 	Environments              map[string]*environs.Environment `mapstructure:"environments" desc:"Deployment Environments"`
@@ -125,12 +126,10 @@ func (tc TerraformConfig) GetTargets(tcc *zen_targets.TargetConfigContext) ([]*z
 			zen_targets.WithTools(tc.Tools),
 			zen_targets.WithEnvVars(tc.Env),
 			zen_targets.WithPassEnv(tc.PassEnv),
+			zen_targets.WithNoInterpolation(),
 			zen_targets.WithTargetScript("build", &zen_targets.TargetScript{
 				Deps: tc.Deps,
 				Run: func(target *zen_targets.Target, runCtx *zen_targets.RuntimeContext) error {
-					flattenedSrcs := target.Srcs["_srcs"]
-					flattenedSrcs = append(flattenedSrcs, target.Srcs["providers"]...)
-
 					envs := []string{}
 					if tc.Environments != nil && len(tc.Environments) > 0 {
 						for env := range tc.Environments {
@@ -161,7 +160,7 @@ func (tc TerraformConfig) GetTargets(tcc *zen_targets.TargetConfigContext) ([]*z
 							varFilesFilter = append(varFilesFilter, interpolatedVarName)
 						}
 
-						for _, src := range flattenedSrcs {
+						for _, src := range target.Srcs["_srcs"] {
 							var from, to string
 
 							if strings.HasSuffix(src, ".tfvars") || strings.HasSuffix(src, ".tfvars.json") {
@@ -184,8 +183,17 @@ func (tc TerraformConfig) GetTargets(tcc *zen_targets.TargetConfigContext) ([]*z
 								to = filepath.Join(dest, filepath.Base(target.StripCwd(src)))
 							}
 
-							if err := utils.CopyWithInterpolate(from, to, target.EnvVars(), envInterpolate); err != nil {
+							if err := utils.Copy(from, to); err != nil {
 								return fmt.Errorf("copying flattened src: %w", err)
+							}
+						}
+
+						for _, src := range target.Srcs["providers"] {
+							from := src
+							to := filepath.Join(dest, filepath.Base(target.StripCwd(src)))
+
+							if err := utils.CopyWithInterpolate(from, to, target.EnvVars(), envInterpolate); err != nil {
+								return fmt.Errorf("copying src: %w", err)
 							}
 						}
 
@@ -215,6 +223,7 @@ func (tc TerraformConfig) GetTargets(tcc *zen_targets.TargetConfigContext) ([]*z
 				Deps:  tc.DeployDeps,
 				Alias: []string{"apply"},
 				Pre:   preFunc,
+				Env:   tc.DeployEnv,
 				Run: func(target *zen_targets.Target, runCtx *zen_targets.RuntimeContext) error {
 					target.SetStatus(fmt.Sprintf("Initializing %s", target.Qn()))
 					if err := tfInit(target, runCtx.Env); err != nil {
@@ -243,13 +252,8 @@ func (tc TerraformConfig) GetTargets(tcc *zen_targets.TargetConfigContext) ([]*z
 					}
 
 					target.SetStatus(fmt.Sprintf("Linting %s", target.Qn()))
-					target.Debugln("executing %s", strings.Join([]string{target.Tools["tflint"]}, " "))
-					cmd := exec.Command(target.Tools["tflint"])
-					cmd.Dir = target.Cwd
-					cmd.Env = target.GetEnvironmentVariablesList()
-					cmd.Stdout = target
-					cmd.Stderr = target
-					return cmd.Run()
+
+					return target.Exec([]string{target.Tools["tflint"]}, "tf lint")
 				},
 			}),
 			zen_targets.WithTargetScript("remove", &zen_targets.TargetScript{
