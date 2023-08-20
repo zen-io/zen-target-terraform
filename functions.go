@@ -59,8 +59,6 @@ var tfDestroy = func(target *zen_targets.Target, env string) error {
 }
 
 var preFunc = func(target *zen_targets.Target, runCtx *zen_targets.RuntimeContext) error {
-	if target.Environments != nil && len(target.Environments) > 0 {
-		target.Cwd = filepath.Join(target.Cwd, runCtx.Env)
-	}
+	target.Cwd = filepath.Join(target.Cwd, runCtx.Env)
 	return nil
 }

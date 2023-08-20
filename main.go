@@ -6,5 +6,5 @@ import (
 
 var KnownTargets = zen_targets.TargetCreatorMap{
 	"terraform":        TerraformConfig{},
-	"terraform_module": TerraformModuleConfig{},
+	// "terraform_module": TerraformModuleConfig{},
 }
